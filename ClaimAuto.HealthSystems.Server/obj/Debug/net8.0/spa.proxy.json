@@ -1,0 +1,10 @@
+{
+"SpaProxyServer": {
+"ServerUrl": "https://localhost:51832",
+"RedirectUrl": "",
+"LaunchCommand": "npm run dev",
+"WorkingDirectory": "/Users/madhavsaxena/Desktop/ClaimAuto/ClaimAuto.HealthSystems.Server/../claimauto.healthsystems.client",
+"MaxTimeoutInSeconds": "120",
+"KeepRunning": "false"
+}
+}

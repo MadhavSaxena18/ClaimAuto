@@ -1,0 +1,668 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>ClaimAuto.HealthSystems.Server</name>
+    </assembly>
+    <members>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.AdjudicationController">
+            <summary>Manages claim adjudication — auto and manual decisioning. Admin and InsuranceStaff only.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AdjudicationController.AutoAdjudicate(System.Int32)">
+            <summary>Runs the automated adjudication engine on a claim. Claims above the threshold are routed for manual review.</summary>
+            <param name="claimId">The claim ID to adjudicate.</param>
+            <response code="200">Adjudication complete — returns decision or routes to manual review.</response>
+            <response code="400">Claim has already been processed.</response>
+            <response code="404">Claim not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AdjudicationController.ManualAdjudicate(ClaimAuto.HealthSystems.Server.DTOs.ManualAdjudicateDto)">
+            <summary>Records a manual adjudication decision (Paid, Denied, or Partial) with required notes.</summary>
+            <param name="dto">Adjudication details including ClaimID, Decision, and Notes.</param>
+            <response code="200">Manual adjudication recorded successfully.</response>
+            <response code="400">Invalid decision or missing notes.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Claim not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AdjudicationController.GetRuleTrace(System.Int32)">
+            <summary>Returns the rule trace showing which adjudication rules fired on a claim.</summary>
+            <param name="claimId">The claim ID to get the rule trace for.</param>
+            <response code="200">Returns the rule trace.</response>
+            <response code="404">No adjudication record found for this claim.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AdjudicationController.GetAdjudication(System.Int32)">
+            <summary>Returns the full adjudication record for a claim.</summary>
+            <param name="claimId">The claim ID to retrieve adjudication for.</param>
+            <response code="200">Returns the adjudication record.</response>
+            <response code="404">No adjudication record found for this claim.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.AppealsController">
+            <summary>Manages claim appeals and subrogation. All authenticated roles; role-scoped results.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AppealsController.GetAllAppeals">
+            <summary>Returns appeals visible to the current user. Admins and InsuranceStaff see all; others see their own.</summary>
+            <response code="200">Returns list of appeals.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AppealsController.GetAppealById(System.Int32)">
+            <summary>Returns a single appeal by ID. Non-staff users can only view their own appeals.</summary>
+            <param name="id">The appeal ID.</param>
+            <response code="200">Returns the appeal.</response>
+            <response code="403">Access denied — not the appeal owner.</response>
+            <response code="404">Appeal not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AppealsController.FileAppeal(ClaimAuto.HealthSystems.Server.DTOs.CreateAppealDto)">
+            <summary>Files a new appeal for a Rejected or Adjudicated claim. Notifies InsuranceStaff automatically.</summary>
+            <param name="dto">Appeal details including ClaimID and reason.</param>
+            <response code="201">Appeal filed successfully.</response>
+            <response code="400">Claim is not in Rejected or Adjudicated status, or reason is missing.</response>
+            <response code="404">Claim not found.</response>
+            <response code="409">An active appeal already exists for this claim.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AppealsController.DecideAppeal(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.DecideAppealDto)">
+            <summary>Records a decision on an appeal. If Overturned, the linked claim is reset to Submitted. Admin and InsuranceStaff only.</summary>
+            <param name="id">The appeal ID to decide.</param>
+            <param name="dto">Decision outcome (Upheld, Overturned, PartiallyOverturned).</param>
+            <response code="200">Appeal decided successfully.</response>
+            <response code="400">Invalid outcome or appeal not in decidable status.</response>
+            <response code="404">Appeal not found.</response> 
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AppealsController.WithdrawAppeal(System.Int32)">
+            <summary>Withdraws an appeal. Only the original filer can withdraw their own appeal.</summary>
+            <param name="id">The appeal ID to withdraw.</param>
+            <response code="200">Appeal withdrawn successfully.</response>
+            <response code="400">Appeal is not in a withdrawable status.</response>
+            <response code="403">Access denied — not the appeal owner.</response>
+            <response code="404">Appeal not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AppealsController.CreateSubrogation(ClaimAuto.HealthSystems.Server.DTOs.CreateSubrogationDto)">
+            <summary>Creates a subrogation record to recover costs from a third party. Admin and InsuranceStaff only.</summary>
+            <param name="dto">Subrogation details including ClaimID, recoverable amount, and third-party info.</param>
+            <response code="201">Subrogation record created in Initiated status.</response>
+            <response code="404">Claim not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AppealsController.GetSubrogations">
+            <summary>Returns all subrogation records. Admin and InsuranceStaff only.</summary>
+            <response code="200">Returns list of subrogation records.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.AuditLogsController">
+            <summary>Provides read-only access to the system audit trail. Admin only.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AuditLogsController.GetAuditLogs(System.Nullable{System.Int32},System.String,System.String,System.Int32)">
+            <summary>Returns all audit logs with optional filters. Max 1000 records per request.</summary>
+            <param name="userId">Filter by user ID.</param>
+            <param name="resourceType">Filter by resource type (e.g. Claim, User).</param>
+            <param name="action">Filter by action name (e.g. Login, CreateRule).</param>
+            <param name="limit">Max records to return (default 500, max 1000).</param>
+            <response code="200">Returns list of audit log entries.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AuditLogsController.GetAuditLogById(System.Int32)">
+            <summary>Returns a single audit log entry by its ID.</summary>
+            <param name="id">The AuditLog ID.</param>
+            <response code="200">Returns the audit log entry.</response>
+            <response code="404">Audit log not found.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.AuthController">
+            <summary>Handles user authentication, registration, and MFA operations.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AuthController.Register(ClaimAuto.HealthSystems.Server.DTOs.CreateUserDto)">
+            <summary>Registers a new user account.</summary>
+            <param name="dto">User registration details including name, email, password, and role.</param>
+            <response code="201">User created successfully.</response>
+            <response code="400">Invalid role provided.</response>
+            <response code="409">Email already exists.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AuthController.Login(ClaimAuto.HealthSystems.Server.DTOs.LoginDto)">
+            <summary>Authenticates a user. Returns JWT if MFA is disabled, or an MFA token if MFA is enabled.</summary>
+            <param name="dto">Login credentials (email and password).</param>
+            <response code="200">Login successful — returns JWT token or MFA token.</response>
+            <response code="401">Invalid credentials or inactive account.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AuthController.VerifyMfa(ClaimAuto.HealthSystems.Server.DTOs.VerifyMfaDto)">
+            <summary>Verifies the TOTP code from the Authenticator app to complete login.</summary>
+            <param name="dto">MFA token and 6-digit TOTP code.</param>
+            <response code="200">MFA verified — returns JWT token.</response>
+            <response code="401">Invalid or expired MFA token, or incorrect TOTP code.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AuthController.SetupMfa">
+            <summary>Generates a TOTP secret and QR code URI for MFA setup. Requires a valid JWT.</summary>
+            <response code="200">Returns secret key and QR code URI to scan in Authenticator app.</response>
+            <response code="400">MFA is already enabled.</response>
+            <response code="404">User not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AuthController.ConfirmMfa(ClaimAuto.HealthSystems.Server.DTOs.MfaConfirmDto)">
+            <summary>Confirms MFA setup by verifying the first TOTP code from the Authenticator app.</summary>
+            <param name="dto">6-digit TOTP code from Authenticator app.</param>
+            <response code="200">MFA enabled successfully.</response>
+            <response code="400">Invalid code or MFA already enabled.</response>
+            <response code="404">User not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.AuthController.DisableMfa(ClaimAuto.HealthSystems.Server.DTOs.MfaConfirmDto)">
+            <summary>Disables MFA for the logged-in user. Requires a valid current TOTP code.</summary>
+            <param name="dto">Current 6-digit TOTP code to confirm identity.</param>
+            <response code="200">MFA disabled successfully.</response>
+            <response code="400">MFA is not enabled.</response>
+            <response code="401">Invalid TOTP code.</response>
+            <response code="404">User not found.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.ClaimsController">
+            <summary>Manages insurance claims, claim lines, and documents. All authenticated roles.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ClaimsController.GetAllClaims(System.String,System.String)">
+            <summary>Returns claims visible to the current user. Admins see all; Policyholders see their own.</summary>
+            <param name="status">Filter by claim status.</param>
+            <param name="priority">Filter by priority.</param>
+            <response code="200">Returns list of claims.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ClaimsController.GetClaimById(System.Int32)">
+            <summary>Returns a single claim by ID.</summary>
+            <param name="id">The claim ID.</param>
+            <response code="200">Returns the claim.</response>
+            <response code="404">Claim not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ClaimsController.SubmitClaim(ClaimAuto.HealthSystems.Server.DTOs.CreateClaimDto)">
+            <summary>Submits a new insurance claim. Validates ProviderID (must be Hospital role), MemberID, and active PolicyID.</summary>
+            <param name="dto">Claim details including member, provider, policy, and diagnosis info.</param>
+            <response code="201">Claim submitted successfully.</response>
+            <response code="400">Validation failed — invalid ProviderID, MemberID, or PolicyID.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="409">ExternalClaimRef already exists.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ClaimsController.UpdateClaim(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.UpdateClaimDto)">
+            <summary>Updates an existing claim. Admin and InsuranceStaff only.</summary>
+            <param name="id">The claim ID to update.</param>
+            <param name="dto">Fields to update.</param>
+            <response code="200">Claim updated successfully.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Claim not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ClaimsController.DeleteClaim(System.Int32)">
+            <summary>Permanently deletes a claim. Only Rejected claims can be deleted. Admin only.</summary>
+            <param name="id">The claim ID to delete.</param>
+            <response code="200">Claim deleted successfully.</response>
+            <response code="400">Claim is not in Rejected status.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Claim not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ClaimsController.AddClaimLine(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.AddClaimLineDto)">
+            <summary>Adds a service line item to an existing claim.</summary>
+            <param name="id">The claim ID.</param>
+            <param name="dto">Claim line details including procedure code and billed amount.</param>
+            <response code="201">Claim line added successfully.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Claim not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ClaimsController.GetClaimLines(System.Int32)">
+            <summary>Returns all line items for a specific claim.</summary>
+            <param name="id">The claim ID.</param>
+            <response code="200">Returns list of claim lines.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ClaimsController.UploadDocument(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.UploadDocumentDto)">
+            <summary>Uploads a supporting document to a claim.</summary>
+            <param name="id">The claim ID.</param>
+            <param name="dto">Document details including type and file URI.</param>
+            <response code="201">Document uploaded successfully.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Claim not found or user is invalid.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ClaimsController.GetClaimDocuments(System.Int32)">
+            <summary>Returns all documents attached to a specific claim.</summary>
+            <param name="id">The claim ID.</param>
+            <response code="200">Returns list of claim documents.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.FraudController">
+            <summary>Manages fraud scoring and fraud case investigation. Admin and InsuranceStaff only.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.FraudController.GetFraudScore(System.Int32)">
+            <summary>Returns the fraud score for a specific claim.</summary>
+            <param name="claimId">The claim ID to retrieve the fraud score for.</param>
+            <response code="200">Returns the fraud score.</response>
+            <response code="404">Claim not found or no fraud score exists yet.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.FraudController.ScoreClaim(System.Int32)">
+            <summary>Runs the 4-factor fraud scoring engine on a claim. If score ≥ 70, automatically opens a FraudCase and Critical notification (ACID transaction).</summary>
+            <param name="claimId">The claim ID to score.</param>
+            <response code="201">Fraud score calculated successfully.</response>
+            <response code="404">Claim not found.</response>
+            <response code="409">Claim has already been scored.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.FraudController.GetAllFraudCases(System.String,System.String)">
+            <summary>Returns all fraud cases with optional filters.</summary>
+            <param name="status">Filter by case status (Open, Resolved).</param>
+            <param name="priority">Filter by priority (Low, Medium, High).</param>
+            <response code="200">Returns list of fraud cases.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.FraudController.GetFraudCaseById(System.Int32)">
+            <summary>Returns a single fraud case by its ID.</summary>
+            <param name="id">The fraud case ID.</param>
+            <response code="200">Returns the fraud case.</response>
+            <response code="404">Fraud case not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.FraudController.CreateFraudCase(ClaimAuto.HealthSystems.Server.DTOs.CreateFraudCaseDto)">
+            <summary>Manually opens a fraud case for a claim.</summary>
+             <param name="dto">Fraud case details including ClaimID, priority, and investigation notes.</param>
+             <response code="201">Fraud case created successfully.</response>
+             <response code="400">Invalid priority value.</response>
+             <response code="404">Claim not found.</response>
+             <response code="409">A fraud case already exists for this claim.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.FraudController.ResolveFraudCase(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.ResolveFraudCaseDto)">
+            <summary>Resolves a fraud case with an outcome. If outcome is Confirmed, the linked claim is automatically rejected.</summary>
+            <param name="id">The fraud case ID to resolve.</param>
+            <param name="dto">Resolution details including outcome (Confirmed, Cleared, Referred).</param>
+            <response code="200">Fraud case resolved successfully.</response>
+            <response code="400">Invalid outcome or case already resolved.</response>
+            <response code="404">Fraud case not found.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.MembersController">
+            <summary>Manages policy members and eligibility checks. Admin and InsuranceStaff access.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.MembersController.GetAllMembers(System.Nullable{System.Int32},System.String)">
+            <summary>Returns all members with optional filters by policy and status.</summary>
+            <param name="policyId">Filter by policy ID.</param>
+            <param name="status">Filter by member status (e.g. Active, Inactive).</param>
+            <response code="200">Returns list of members.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.MembersController.GetMemberById(System.Int32)">
+            <summary>Returns a single member by ID, including resolved PolicyName.</summary>
+            <param name="id">The member ID.</param>
+            <response code="200">Returns the member.</response>
+            <response code="404">Member not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.MembersController.CheckEligibility(System.Int32)">
+            <summary>Checks a member's eligibility. Results are cached for 300 seconds (TTL cache).</summary>
+            <param name="id">The member ID to check eligibility for.</param>
+            <response code="200">Returns eligibility result (cached or fresh).</response>
+            <response code="404">Member not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.MembersController.CreateMember(ClaimAuto.HealthSystems.Server.DTOs.CreateMemberDto)">
+            <summary>Enrolls a new member under an active policy.</summary>
+            <param name="dto">Member details including name, DOB, policy ID, and member number.</param>
+            <response code="201">Member enrolled successfully.</response>
+            <response code="400">Policy not found or not active.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="409">MemberNumber already exists.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.MembersController.UpdateMember(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.UpdateMemberDto)">
+            <summary>Updates mutable member fields: Name, ContactInfo, CoverageEnd, Status.</summary>
+            <param name="id">The member ID to update.</param>
+            <param name="dto">Fields to update (DOB, Gender, and PolicyID cannot be changed).</param>
+            <response code="200">Member updated successfully.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Member not found.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.NotificationsController">
+            <summary>Manages user notifications. Each user sees only their own notifications.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.NotificationsController.GetMyNotifications(System.String,System.String)">
+            <summary>Returns notifications for the currently logged-in user.</summary>
+            <param name="status">Filter by status (Unread, Read, Dismissed).</param>
+            <param name="category">Filter by category (Exception, Payment, Appeal).</param>
+            <response code="200">Returns list of notifications.</response>
+            <response code="401">Unauthorized.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.NotificationsController.GetUnreadNotifications">
+            <summary>Returns all unread notifications for the currently logged-in user.</summary>
+            <response code="200">Returns list of unread notifications.</response>
+            <response code="401">Unauthorized.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.NotificationsController.CreateNotification(ClaimAuto.HealthSystems.Server.DTOs.CreateNotificationDto)">
+            <summary>Creates a new notification for a user. Admin and InsuranceStaff only.</summary>
+            <param name="dto">Notification details including message, category (Exception/Payment/Appeal), and severity (Info/Warning/Critical).</param>
+            <response code="201">Notification created successfully.</response>
+            <response code="400">Invalid category, severity, or missing message.</response>
+            <response code="401">Unauthorized.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.NotificationsController.MarkAsRead(System.Int32)">
+            <summary>Marks a notification as read.</summary>
+            <param name="id">The notification ID to mark as read.</param>
+            <response code="200">Notification marked as read.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Notification not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.NotificationsController.DismissNotification(System.Int32)">
+            <summary>Dismisses a notification.</summary>
+            <param name="id">The notification ID to dismiss.</param>
+            <response code="200">Notification dismissed.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Notification not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.NotificationsController.DeleteNotification(System.Int32)">
+            <summary>Permanently deletes a notification.</summary>
+            <param name="id">The notification ID to delete.</param>
+            <response code="204">Notification deleted successfully.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Notification not found.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.PoliciesController">
+            <summary>Manages insurance policies. Admin and InsuranceStaff access.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.PoliciesController.GetActivePolicies">
+            <summary>Returns all active policies. Accessible by Admin, InsuranceStaff, and Hospital roles.</summary>
+            <response code="200">Returns list of active policies.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.PoliciesController.GetAllPolicies">
+            <summary>Returns all policies regardless of status.</summary>
+            <response code="200">Returns list of all policies.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.PoliciesController.GetPolicyById(System.Int32)">
+            <summary>Returns a single policy by ID.</summary>
+            <param name="id">The policy ID.</param>
+            <response code="200">Returns the policy.</response>
+            <response code="404">Policy not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.PoliciesController.CreatePolicy(ClaimAuto.HealthSystems.Server.DTOs.CreatePolicyDto)">
+            <summary>Creates a new insurance policy. Admin only.</summary>
+            <param name="dto">Policy details including plan code, coverage limits, and effective dates.</param>
+            <response code="201">Policy created successfully.</response>
+            <response code="401">Unauthorized — missing or invalid token.</response>
+            <response code="409">A policy with the same PlanCode already exists.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.PoliciesController.UpdatePolicy(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.UpdatePolicyDto)">
+            <summary>Updates an existing policy. Admin only.</summary>
+            <param name="id">The policy ID to update.</param>
+            <param name="dto">Fields to update.</param>
+            <response code="200">Policy updated successfully.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Policy not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.PoliciesController.DeactivatePolicy(System.Int32)">
+            <summary>Deactivates a policy. Fails if the policy has active members enrolled. Admin only.</summary>
+            <param name="id">The policy ID to deactivate.</param>
+            <response code="200">Policy deactivated successfully.</response>
+            <response code="400">Policy already expired or has active members.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Policy not found.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.ReportsController">
+            <summary>Manages reports, KPIs, and audit packages. Admin and InsuranceStaff access.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ReportsController.GetAllReports(System.String)">
+            <summary>Returns all generated reports with optional scope filter.</summary>
+            <param name="scope">Filter by scope: Operational, Regulatory, Financial, Fraud.</param>
+            <response code="200">Returns list of reports.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ReportsController.GetReportById(System.Int32)">
+            <summary>Returns a single report by ID.</summary>
+            <param name="id">The report ID.</param>
+            <response code="200">Returns the report.</response>
+            <response code="404">Report not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ReportsController.GenerateReport(ClaimAuto.HealthSystems.Server.DTOs.GenerateReportDto)">
+            <summary>Generates a new report for the specified scope.</summary>
+            <param name="dto">Report parameters including scope (Operational/Regulatory/Financial/Fraud).</param>
+            <response code="201">Report generated successfully.</response>
+            <response code="400">Invalid or missing scope.</response>
+            <response code="401">Unauthorized.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ReportsController.GetAllKPIs">
+            <summary>Returns all KPI (Key Performance Indicator) records.</summary>
+            <response code="200">Returns list of KPIs.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ReportsController.UpdateKPI(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.UpdateKPIDto)">
+            <summary>Updates a KPI record. Admin only.</summary>
+            <param name="id">The KPI ID to update.</param>
+            <param name="dto">Updated KPI values.</param>
+            <response code="200">KPI updated successfully.</response>
+            <response code="404">KPI not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ReportsController.GetAllAuditPackages">
+            <summary>Returns all compliance audit packages.</summary>
+            <response code="200">Returns list of audit packages. </response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.ReportsController.GenerateAuditPackage(System.DateTime,System.DateTime)">
+            <summary>Generates a compliance audit package for a specified period. Admin only.</summary>
+            <param name="periodStart">Start of the audit period (UTC).</param>
+            <param name="periodEnd">End of the audit period (UTC).</param>
+            <response code="201">Audit package generated successfully.</response>
+            <response code="400">PeriodStart must be before PeriodEnd.</response>
+            <response code="401">Unauthorized.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.RulesController">
+            <summary>Manages adjudication rules (Draft → Active → Inactive state machine). Admin only.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.RulesController.GetAllRules(System.String,System.String)">
+            <summary>Returns all adjudication rules with optional filters.</summary>
+            <param name="status">Filter by status (Draft, Active, Inactive).</param>
+            <param name="ruleType">Filter by type (Coverage, Payment, Validation).</param>
+            <response code="200">Returns list of rules.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.RulesController.GetRuleById(System.Int32)">
+            <summary>Returns a single rule by ID.</summary>
+            <param name="id">The rule ID.</param>
+            <response code="200">Returns the rule.</response>
+            <response code="404">Rule not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.RulesController.CreateRule(ClaimAuto.HealthSystems.Server.DTOs.CreateRuleDto)">
+            <summary>Creates a new adjudication rule in Draft status.</summary>
+            <param name="dto">Rule details including name, type (Coverage/Payment/Validation), and logic.</param>
+            <response code="201">Rule created successfully in Draft status.</response>
+            <response code="400">Invalid RuleType.</response>
+            <response code="401">Unauthorized.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.RulesController.UpdateRule(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.UpdateRuleDto)">
+            <summary>Updates a rule's details.</summary>
+            <param name="id">The rule ID to update.</param>
+            <param name="dto">Fields to update.</param>
+            <response code="200">Rule updated successfully.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Rule not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.RulesController.ActivateRule(System.Int32)">
+            <summary>Activates a Draft rule so the adjudication engine will use it.</summary>
+            <param name="id">The rule ID to activate.</param>
+            <response code="200">Rule activated successfully.</response>
+            <response code="400">Rule is already Active.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Rule not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.RulesController.DeactivateRule(System.Int32)">
+            <summary>Deactivates an Active rule so the adjudication engine stops using it.</summary>
+            <param name="id">The rule ID to deactivate.</param>
+            <response code="200">Rule deactivated successfully.</response>
+            <response code="400">Rule is a Draft (never activated) or already Inactive.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Rule not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.RulesController.DeleteRule(System.Int32)">
+            <summary>Permanently deletes a rule. Only Draft rules (never activated) can be deleted.</summary>
+            <param name="id">The rule ID to delete.</param>
+            <response code="200">Rule deleted successfully.</response>
+            <response code="400">Rule has been activated and cannot be deleted — use deactivate instead.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Rule not found.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Controllers.TasksController">
+            <summary>Manages staff tasks assigned to claims. Admin and InsuranceStaff only.</summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.TasksController.GetAllTasks(System.Nullable{System.Int32},System.String,System.String)">
+            <summary>Returns tasks visible to the current user. Admins see all; InsuranceStaff see their own.</summary>
+            <param name="assignedTo">Filter by assigned user ID.</param>
+            <param name="status">Filter by status (Pending, Completed).</param>
+            <param name="priority">Filter by priority (Low, Medium, High).</param>
+            <response code="200">Returns list of tasks.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.TasksController.GetOverdueTasks">
+            <summary>Returns all tasks where DueDate has passed and status is still Pending.</summary>
+            <response code="200">Returns list of overdue tasks.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.TasksController.GetTaskById(System.Int32)">
+            <summary>Returns a single task by ID. InsuranceStaff can only view tasks assigned to them.</summary>
+            <param name="id">The task ID.</param>
+            <response code="200">Returns the task.</response>
+            <response code="403">Access denied — task not assigned to current user.</response>
+            <response code="404">Task not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.TasksController.CreateTask(ClaimAuto.HealthSystems.Server.DTOs.CreateTaskDto)">
+            <summary>Creates a new task assigned to a staff user. Status is always set to Pending by the server.</summary>
+            <param name="dto">Task details including AssignedTo, ClaimID, description, due date, and priority.</param>
+            <response code="201">Task created successfully in Pending status.</response>
+            <response code="400">Invalid priority value.</response>
+            <response code="404">Assignee user not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.TasksController.UpdateTask(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.UpdateTaskDto)">
+            <summary>Updates task fields (description, due date, priority, assignee). Status cannot be changed here — use /complete.</summary>
+            <param name="id">The task ID to update.</param>
+            <param name="dto">Fields to update.</param>
+            <response code="200">Task updated successfully.</response>
+            <response code="400">Invalid priority value.</response>
+            <response code="404">Task or assignee not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.TasksController.CompleteTask(System.Int32)">
+            <summary>Marks a task as Completed. InsuranceStaff can only complete tasks assigned to them.</summary>
+            <param name="id">The task ID to complete.</param>
+            <response code="200">Task completed successfully.</response>
+            <response code="400">Task is already completed.</response>
+            <response code="403">Access denied — task not assigned to current user.</response>
+            <response code="404">Task not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.TasksController.DeleteTask(System.Int32)">
+            <summary>Permanently deletes a task. Only Pending tasks can be deleted. Admin only.</summary>
+             <param name="id">The task ID to delete.</param>
+             <response code="200">Task deleted successfully.</response>
+             <response code="400">Task is not in Pending status.</response>
+             <response code="404">Task not found.</response>
+        </member>
+        <!-- Badly formed XML comment ignored for member "T:ClaimAuto.HealthSystems.Server.Controllers.UsersController" -->
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.UsersController.GetAllUsers">
+            <summary>Returns all user accounts.</summary>
+            <response code="200">Returns list of all users.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.UsersController.GetUser(System.Int32)">
+            <summary>Returns a single user by ID.</summary>
+            <param name="id">The user ID.</param>
+            <response code="200">Returns the user.</response>
+            <response code="404">User not found.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.UsersController.GetUsersByRole(ClaimAuto.HealthSystems.Server.Model.UserRole)">
+            <summary>Returns all users with the specified role.</summary>
+            <param name="role">Role to filter by: Admin, InsuranceStaff, Policyholder, Hospital.</param>
+            <response code="200">Returns list of users with the given role.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.UsersController.CreateUser(ClaimAuto.HealthSystems.Server.DTOs.CreateUserDto)">
+            <summary>Creates a new user account.</summary>
+            <param name="dto">User details including name, email, password, and role.</param>
+            <response code="201">User created successfully.</response>
+            <response code="400">Invalid role.</response>
+            <response code="409">Email already exists.</response>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.UsersController.UpdateUser(System.Int32,ClaimAuto.HealthSystems.Server.DTOs.UpdateUserDto)">
+            <summary>
+            Updates a user's profile fields.
+            Admin can update any user. Non-admin users can update only their own profile
+            and cannot change their own status or MFA flag through this endpoint.
+            </summary>
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Controllers.UsersController.DeleteUser(System.Int32)">
+            <summary>Soft-deletes a user by setting their status to Inactive.</summary>
+            <param name="id">The user ID to deactivate.</param>
+            <response code="204">User deactivated successfully.</response>
+            <response code="404">User not found.</response>
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Migrations.databasesetting">
+            <inheritdoc />
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Migrations.databasesetting.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Migrations.databasesetting.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Migrations.databasesetting.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Migrations.taskTableProblemSolved">
+            <inheritdoc />
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Migrations.taskTableProblemSolved.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Migrations.taskTableProblemSolved.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Migrations.taskTableProblemSolved.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:ClaimAuto.HealthSystems.Server.Migrations.AddMustChangePasswordToUser">
+            <inheritdoc />
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Migrations.AddMustChangePasswordToUser.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Migrations.AddMustChangePasswordToUser.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Migrations.AddMustChangePasswordToUser.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:ClaimAuto.HealthSystems.Server.Repositories.Interfaces.IAuditLogRepository.GetAllAsync(System.Nullable{System.Int32},System.String,System.String,System.Int32)">
+            GET /api/auditlogs
+        </member>
+        <member name="T:PaymentsController">
+            <summary>Manages claim payments through state machine: Pending → Authorized → Executed.</summary>
+        </member>
+        <member name="M:PaymentsController.GetAllPayments(System.String,System.Nullable{System.Int32})">
+            <summary>Returns all payments with optional filters. Admin and InsuranceStaff only.</summary>
+            <param name="status">Filter by payment status.</param>
+            <param name="claimId">Filter by claim ID.</param>
+            <response code="200">Returns list of payments.</response>
+        </member>
+        <member name="M:PaymentsController.GetPaymentById(System.Int32)">
+            <summary>Returns a single payment by ID. Admin and InsuranceStaff only.</summary>
+            <param name="id">The payment ID.</param>
+            <response code="200">Returns the payment.</response>
+            <response code="404">Payment not found.</response>
+        </member>
+        <member name="M:PaymentsController.CreatePayment(ClaimAuto.HealthSystems.Server.DTOs.CreatePaymentDto)">
+            <summary>Creates a new payment in Pending status for a claim.</summary>
+            <param name="dto">Payment details including ClaimID, amount, method (EFT/ACH/Check), and schedule.</param>
+            <response code="201">Payment created successfully in Pending status.</response>
+            <response code="400">Invalid ClaimID, amount, or payment method.</response>
+            <response code="401">Unauthorized.</response>
+        </member>
+        <member name="M:PaymentsController.AuthorizePayment(System.Int32)">
+            <summary>Authorizes a Pending payment, moving it to Authorized status.</summary>
+            <param name="id">The payment ID to authorize.</param>
+            <response code="200">Payment authorized successfully.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Payment not found or not in Pending status.</response>
+        </member>
+        <member name="M:PaymentsController.ExecutePayment(System.Int32,System.String)">
+            <summary>Executes an Authorized payment, moving it to Executed status.</summary>
+            <param name="id">The payment ID to execute.</param>
+            <param name="referenceNumber">The bank/transfer reference number for the executed payment.</param>
+            <response code="200">Payment executed successfully.</response>
+            <response code="400">Reference number is missing.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Payment not found or not in Authorized status.</response>
+        </member>
+        <member name="M:PaymentsController.HoldPayment(System.Int32)">
+            <summary>Places a payment on hold, preventing further processing.</summary>
+            <param name="id">The payment ID to hold.</param>
+            <response code="200">Payment placed on hold.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Payment not found or cannot be put on hold.</response>
+        </member>
+        <member name="M:PaymentsController.GetRemittance(System.Int32)">
+            <summary>Returns the remittance advice for a payment. Admin, InsuranceStaff, and Hospital roles.</summary>
+            <param name="id">The payment ID.</param>
+            <response code="200">Returns the remittance advice.</response>
+            <response code="404">Remittance not found for this payment.</response>
+        </member>
+        <member name="M:PaymentsController.AcknowledgeRemittance(System.Int32)">
+            <summary>Acknowledges receipt of a remittance advice. Hospital role only.</summary>
+            <param name="id">The payment ID whose remittance to acknowledge.</param>
+            <response code="200">Remittance acknowledged successfully.</response>
+            <response code="401">Unauthorized.</response>
+            <response code="404">Remittance not found or not yet sent.</response>
+        </member>
+        <member name="M:PaymentsController.GetReconciliations">
+            <summary>Returns all payment reconciliation records. Admin and InsuranceStaff only.</summary>
+            <response code="200">Returns list of reconciliation records.</response>
+        </member>
+        <member name="M:PaymentsController.CreateReconciliation(ClaimAuto.HealthSystems.Server.DTOs.CreateReconciliationDto)">
+            <summary>Generates a payment reconciliation report for a given period.</summary>
+            <param name="dto">Period start and end dates for reconciliation.</param>
+            <response code="201">Reconciliation record created successfully.</response>
+            <response code="400">PeriodStart must be before PeriodEnd.</response>
+            <response code="401">Unauthorized.</response>
+        </member>
+    </members>
+</doc>
